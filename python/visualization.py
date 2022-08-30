@@ -4,7 +4,7 @@ import time
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter1d
 import config
-import microphone
+import microphone   
 import dsp
 import led
 
@@ -87,17 +87,17 @@ def interpolate(y, new_length):
     return z
 
 
-r_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+r_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
                        alpha_decay=0.2, alpha_rise=0.99)
-g_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+g_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
                        alpha_decay=0.05, alpha_rise=0.3)
-b_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+b_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
                        alpha_decay=0.1, alpha_rise=0.5)
-common_mode = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+common_mode = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
                        alpha_decay=0.99, alpha_rise=0.01)
-p_filt = dsp.ExpFilter(np.tile(1, (3, config.N_PIXELS // 2)),
+p_filt = dsp.ExpFilter(np.tile(1, (3, config.N_PIXELS)),
                        alpha_decay=0.1, alpha_rise=0.99)
-p = np.tile(1.0, (3, config.N_PIXELS // 2))
+p = np.tile(1.0, (3, config.N_PIXELS))
 gain = dsp.ExpFilter(np.tile(0.01, config.N_FFT_BINS),
                      alpha_decay=0.001, alpha_rise=0.99)
 
@@ -107,20 +107,21 @@ def visualize_scroll(y):
     global p
     y = y**2.0
     gain.update(y)
-    y /= gain.value
+    y /= gain.value/2
     y *= 255.0
     r = int(np.max(y[:len(y) // 3]))
-    g = int(np.max(y[len(y) // 3: 2 * len(y) // 3]))
-    b = int(np.max(y[2 * len(y) // 3:]))
+    g = int(np.max(y[len(y) // 3: 2 * len(y) // 3]))*2
+    b = int(np.max(y[2 * len(y) // 3:]))*2
     # Scrolling effect window
     p[:, 1:] = p[:, :-1]
-    p *= 0.98
+    p *= .99
     p = gaussian_filter1d(p, sigma=0.2)
     # Create new color originating at the center
     p[0, 0] = r
     p[1, 0] = g
     p[2, 0] = b
     # Update the LED strip
+    return p
     return np.concatenate((p[:, ::-1], p), axis=1)
 
 
@@ -133,10 +134,10 @@ def visualize_energy(y):
     # Scale by the width of the LED strip
     y *= float((config.N_PIXELS // 2) - 1)
     # Map color channels according to energy in the different freq bands
-    scale = 0.9
-    r = int(np.mean(y[:len(y) // 3]**scale))
+    scale = 1.1
+    r = int(np.mean(y[:len(y) // 3]**(scale+0.15)))
     g = int(np.mean(y[len(y) // 3: 2 * len(y) // 3]**scale))
-    b = int(np.mean(y[2 * len(y) // 3:]**scale))
+    b = int(np.mean(y[2 * len(y) // 3:]**(scale-0.1)))
     # Assign color to different frequency regions
     p[0, :r] = 255.0
     p[0, r:] = 0.0
@@ -151,13 +152,24 @@ def visualize_energy(y):
     p[1, :] = gaussian_filter1d(p[1, :], sigma=4.0)
     p[2, :] = gaussian_filter1d(p[2, :], sigma=4.0)
     # Set the new pixel value
-    return np.concatenate((p[:, ::-1], p), axis=1)
+    return p
 
 
 _prev_spectrum = np.tile(0.01, config.N_PIXELS // 2)
 
 
 def visualize_spectrum(y):
+    r_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+                        alpha_decay=0.2, alpha_rise=0.99)
+    g_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+                        alpha_decay=0.05, alpha_rise=0.3)
+    b_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+                        alpha_decay=0.1, alpha_rise=0.5)
+    common_mode = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+                        alpha_decay=0.99, alpha_rise=0.01)
+    p_filt = dsp.ExpFilter(np.tile(1, (3, config.N_PIXELS // 2)),
+                        alpha_decay=0.1, alpha_rise=0.99)
+    p = np.tile(1.0, (3, config.N_PIXELS // 2))
     """Effect that maps the Mel filterbank frequencies onto the LED strip"""
     global _prev_spectrum
     y = np.copy(interpolate(y, config.N_PIXELS // 2))
@@ -351,6 +363,8 @@ if __name__ == '__main__':
         layout.addItem(scroll_label)
         layout.addItem(spectrum_label)
     # Initialize LEDs
+    else:
+        visualization_effect = visualize_energy
     led.update()
     # Start listening to live audio stream
     microphone.start_stream(microphone_update)
