@@ -76,9 +76,9 @@ def _update_esp8266():
             else:
                 m.append(i >> 8)  # Index of pixel to change
                 m.append(i & 0xFF)  # Index of pixel to change
-                m.append(p[0][i])  # Pixel red value
-                m.append(p[1][i])  # Pixel green value
-                m.append(p[2][i])  # Pixel blue value
+                m.append(int(p[0][i]*config.BRIGHTNESS))  # Pixel red value
+                m.append(int(p[1][i]*config.BRIGHTNESS))  # Pixel green value
+                m.append(int(p[2][i]*config.BRIGHTNESS))  # Pixel blue value
         m = bytes(m)
         _sock.sendto(m, (config.UDP_IP, config.UDP_PORT))
     _prev_pixels = np.copy(p)
