@@ -367,4 +367,5 @@ if __name__ == '__main__':
         visualization_effect = visualize_energy
     led.update()
     # Start listening to live audio stream
+
     microphone.start_stream(microphone_update)
