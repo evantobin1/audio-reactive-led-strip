@@ -17,9 +17,9 @@
 // Set to the number of LEDs in your LED strip
 #define NUM_LEDS 300
 // Maximum number of packets to hold in the buffer. Don't change this.
-#define BUFFER_LEN 1024
+#define BUFFER_LEN 1500
 // Toggles FPS output (1 = print FPS over serial, 0 = disable output)
-#define PRINT_FPS 1
+#define PRINT_FPS 0
 
 //NeoPixelBus settings
 const uint8_t PixelPin = 19;  // make sure to set this to the correct pin, ignored for Esp8266(set to 3 by default for DMA)
@@ -71,6 +71,10 @@ void setup() {
 #endif
 
 void loop() {
+
+  static bool pixelUpdated[NUM_LEDS] = {false};
+  memset(pixelUpdated, 0, sizeof(pixelUpdated)); // Reset update status
+
     // Read data over socket
     int packetSize = port.parsePacket();
     // If packets have been received, interpret the command
@@ -81,8 +85,17 @@ void loop() {
             N = ((packetBuffer[i] << 8) + packetBuffer[i + 1]);
             RgbColor pixel((uint8_t)packetBuffer[i+2], (uint8_t)packetBuffer[i+3], (uint8_t)packetBuffer[i+4]);//color
             ledstrip.SetPixelColor(N, pixel);//N is the pixel number
+            pixelUpdated[N] = true; // 
         } 
+        
+        // Reset unupdated pixels to black
+        for(int i = 0; i < NUM_LEDS; i++) {
+            if (!pixelUpdated[i]) {
+                ledstrip.SetPixelColor(i, RgbColor(0, 0, 0));
+            }
+        }
         ledstrip.Show();
+
         #if PRINT_FPS
             fpsCounter++;
             Serial.print("/");//Monitors connection(shows jumps/jitters in packets)

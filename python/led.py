@@ -43,7 +43,7 @@ pixels = np.tile(1, (3, config.N_PIXELS))
 _is_python_2 = int(platform.python_version_tuple()[0]) == 2
 
 def _update_esp8266():
-    """Sends UDP packets to ESP8266 to update LED strip values
+    """Sends UDP packets to ESP8266 to update LED strip values.
 
     The ESP8266 will receive and decode the packets to determine what values
     to display on the LED strip. The communication protocol supports LED strips
@@ -57,32 +57,37 @@ def _update_esp8266():
         g (0 to 255): Green value of LED
         b (0 to 255): Blue value of LED
     """
-    global pixels, _prev_pixels
+    global pixels
     # Truncate values and cast to integer
     pixels = np.clip(pixels, 0, 255).astype(int)
-    # Optionally apply gamma correc tio
+    # Optionally apply gamma correction
     p = _gamma[pixels] if config.SOFTWARE_GAMMA_CORRECTION else np.copy(pixels)
     MAX_PIXELS_PER_PACKET = 126
-    # Pixel indices
-    idx = range(pixels.shape[1])
-    idx = [i for i in idx if not np.array_equal(p[:, i], _prev_pixels[:, i])]
-    n_packets = len(idx) // MAX_PIXELS_PER_PACKET + 1
-    idx = np.array_split(idx, n_packets)
+
+    # Collect indices of non-zero pixels
+    idx = [i for i in range(pixels.shape[1]) if np.any(p[:, i] != 0)]
+    
+    # Check if there are any pixels to update
+    if len(idx) == 0:
+        return  # No non-zero pixels to update, skip the packet sending
+    
+    n_packets = len(idx) // MAX_PIXELS_PER_PACKET + (1 if len(idx) % MAX_PIXELS_PER_PACKET != 0 else 0)
+    
+    # Split indices into manageable packets and send
+    idx = np.array_split(idx, n_packets)  # This is safe now since len(idx) > 0
+
     for packet_indices in idx:
-        m = '' if _is_python_2 else []
+        m = []
         for i in packet_indices:
-            if _is_python_2:
-                m += chr(i) + chr(int(p[0][i]*config.BRIGHTNESS)) + chr(int(p[1][i]*config.BRIGHTNESS)) + chr(int(p[2][i]*config.BRIGHTNESS))
-            else:
-                m.append(i >> 8)  # Index of pixel to change
-                m.append(i & 0xFF)  # Index of pixel to change
-                m.append(int(p[0][i]*config.BRIGHTNESS))  # Pixel red value
-                m.append(int(p[1][i]*config.BRIGHTNESS))  # Pixel green value
-                m.append(int(p[2][i]*config.BRIGHTNESS))  # Pixel blue value
+            m.extend([
+                i >> 8,  # High byte of pixel index
+                i & 0xFF,  # Low byte of pixel index
+                int(p[0][i] * config.BRIGHTNESS),  # Pixel red value
+                int(p[1][i] * config.BRIGHTNESS),  # Pixel green value
+                int(p[2][i] * config.BRIGHTNESS)  # Pixel blue value
+            ])
         m = bytes(m)
         _sock.sendto(m, (config.UDP_IP, config.UDP_PORT))
-    _prev_pixels = np.copy(p)
-
 
 def _update_pi():
     """Writes new LED values to the Raspberry Pi's LED strip
