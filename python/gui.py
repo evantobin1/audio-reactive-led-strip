@@ -34,7 +34,7 @@ class GUI:
 if __name__ == '__main__':
     # Example test gui
     N = 48
-    gui = GUI(title='Test')
+    gui = GUI(title='Visualizer')
     # Sin plot
     gui.add_plot(title='Sin Plot')
     gui.add_curve(plot_index=0)

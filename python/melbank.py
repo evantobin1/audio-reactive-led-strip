@@ -32,7 +32,6 @@ Functions
 
 from numpy import abs, append, arange, insert, linspace, log10, round, zeros
 
-
 def hertz_to_mel(freq):
     """Returns mel-frequency from linear frequency input.
     Parameter
@@ -132,7 +131,7 @@ def compute_melmat(num_mel_bands=12, freq_min=64, freq_max=8000,
 
     center_frequencies_hz = mel_to_hertz(center_frequencies_mel)
     lower_edges_hz = mel_to_hertz(lower_edges_mel)
-    upper_edges_hz = mel_to_hertz(upper_edges_mel)
+    upper_edges_hz = mel_to_hertz(upper_edges_mel) 
     freqs = linspace(0.0, sample_rate / 2.0, num_fft_bands)
     melmat = zeros((num_mel_bands, num_fft_bands))
 

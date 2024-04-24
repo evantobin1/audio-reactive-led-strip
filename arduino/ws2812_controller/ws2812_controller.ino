@@ -15,22 +15,22 @@
 #endif
 
 // Set to the number of LEDs in your LED strip
-#define NUM_LEDS 60
+#define NUM_LEDS 300
 // Maximum number of packets to hold in the buffer. Don't change this.
 #define BUFFER_LEN 1024
 // Toggles FPS output (1 = print FPS over serial, 0 = disable output)
 #define PRINT_FPS 1
 
 //NeoPixelBus settings
-const uint8_t PixelPin = 3;  // make sure to set this to the correct pin, ignored for Esp8266(set to 3 by default for DMA)
+const uint8_t PixelPin = 19;  // make sure to set this to the correct pin, ignored for Esp8266(set to 3 by default for DMA)
 
 // Wifi and socket settings
-const char* ssid     = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+const char* ssid     = "TobinGuest";
+const char* password = "cole&christian";
 unsigned int localPort = 7777;
 char packetBuffer[BUFFER_LEN];
 
-uint8_t N = 0;
+uint16_t N = 0;
 
 WiFiUDP port;
 // Network information
@@ -76,10 +76,10 @@ void loop() {
     // If packets have been received, interpret the command
     if (packetSize) {
         int len = port.read(packetBuffer, BUFFER_LEN);
-        for(int i = 0; i < len; i+=4) {
+        for(int i = 0; i < len; i+=5) {
             packetBuffer[len] = 0;
-            N = packetBuffer[i];
-            RgbColor pixel((uint8_t)packetBuffer[i+1], (uint8_t)packetBuffer[i+2], (uint8_t)packetBuffer[i+3]);//color
+            N = ((packetBuffer[i] << 8) + packetBuffer[i + 1]);
+            RgbColor pixel((uint8_t)packetBuffer[i+2], (uint8_t)packetBuffer[i+3], (uint8_t)packetBuffer[i+4]);//color
             ledstrip.SetPixelColor(N, pixel);//N is the pixel number
         } 
         ledstrip.Show();

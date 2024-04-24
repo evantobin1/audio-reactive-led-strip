@@ -17,6 +17,9 @@ audio input and control the LED strip directly.
 to control the leds connected to it.
 """
 
+BRIGHTNESS = 1
+"""Set between 0 and 1 to control LED brightness for pi,esp8266,and blinkstick"""
+
 if DEVICE == 'esp8266':
     UDP_IP = '192.168.0.150'
     """IP address of the ESP8266. Must match IP in ws2812_controller.ino"""
@@ -32,7 +35,7 @@ if DEVICE == 'pi':
     """LED signal frequency in Hz (usually 800kHz)"""
     LED_DMA = 5
     """DMA channel used for generating PWM signal (try 5)"""
-    BRIGHTNESS = 255
+    PI_BRIGHTNESS = 255 * BRIGHTNESS
     """Brightness of LED strip between 0 and 255"""
     LED_INVERT = True
     """Set True if using an inverting logic level converter"""
@@ -49,13 +52,13 @@ USE_GUI = True
 DISPLAY_FPS = True
 """Whether to display the FPS when running (can reduce performance)"""
 
-N_PIXELS = 60
+N_PIXELS = 300
 """Number of pixels in the LED strip (must match ESP8266 firmware)"""
 
 GAMMA_TABLE_PATH = os.path.join(os.path.dirname(__file__), 'gamma_table.npy')
 """Location of the gamma correction table"""
 
-MIC_RATE = 44100
+MIC_RATE = 48000
 """Sampling frequency of the microphone in Hz"""
 
 FPS = 60
@@ -77,7 +80,7 @@ depends on how long the LED strip is.
 _max_led_FPS = int(((N_PIXELS * 30e-6) + 50e-6)**-1.0)
 assert FPS <= _max_led_FPS, 'FPS must be <= {}'.format(_max_led_FPS)
 
-MIN_FREQUENCY = 200
+MIN_FREQUENCY = 20
 """Frequencies below this value will be removed during audio processing"""
 
 MAX_FREQUENCY = 12000
@@ -101,5 +104,5 @@ There is no point using more bins than there are pixels on the LED strip.
 N_ROLLING_HISTORY = 2
 """Number of past audio frames to include in the rolling window"""
 
-MIN_VOLUME_THRESHOLD = 1e-7
+MIN_VOLUME_THRESHOLD = 1e-3
 """No music visualization displayed if recorded audio volume below threshold"""
