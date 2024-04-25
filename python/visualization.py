@@ -166,32 +166,47 @@ _prev_spectrum = np.tile(0.01, config.N_PIXELS // 2)
 
 
 def visualize_spectrum(y):
+    global _prev_spectrum  # Ensure _prev_spectrum is defined at the global level
+
+    # Define a threshold below which the LEDs should be black
+    threshold = 0.1  # Adjust this value based on experimentation
+
+    # Check if _prev_spectrum needs initialization (e.g., first run)
+    if '_prev_spectrum' not in globals():
+        _prev_spectrum = np.zeros(config.N_PIXELS // 2)
+
     r_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
-                        alpha_decay=0.2, alpha_rise=0.99)
+                           alpha_decay=0.2, alpha_rise=0.99)
     g_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
-                        alpha_decay=0.05, alpha_rise=0.3)
+                           alpha_decay=0.05, alpha_rise=0.3)
     b_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
-                        alpha_decay=0.1, alpha_rise=0.5)
+                           alpha_decay=0.1, alpha_rise=0.5)
     common_mode = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
-                        alpha_decay=0.99, alpha_rise=0.01)
-    p_filt = dsp.ExpFilter(np.tile(1, (3, config.N_PIXELS // 2)),
-                        alpha_decay=0.1, alpha_rise=0.99)
-    p = np.tile(1.0, (3, config.N_PIXELS // 2))
-    """Effect that maps the Mel filterbank frequencies onto the LED strip"""
-    global _prev_spectrum
+                                alpha_decay=0.99, alpha_rise=0.01)
+
     y = np.copy(interpolate(y, config.N_PIXELS // 2))
     common_mode.update(y)
     diff = y - _prev_spectrum
-    _prev_spectrum = np.copy(y)
-    # Color channel mappings
+    _prev_spectrum = np.copy(y)  # Update the previous spectrum
+
+    # Update filter outputs
     r = r_filt.update(y - common_mode.value)
-    g = np.abs(diff)
+    g = g_filt.update(np.abs(diff))
     b = b_filt.update(np.copy(y))
-    # Mirror the color channels for symmetric output
-    r = np.concatenate((r[::-1], r))
-    g = np.concatenate((g[::-1], g))
-    b = np.concatenate((b[::-1], b))
-    output = np.array([r, g,b]) * 255
+
+    # Apply threshold check
+    r[r < threshold] = 0
+    g[g < threshold] = 0
+    b[b < threshold] = 0
+
+    # Mirror the color channels for symmetric output and scale to RGB range
+    r = np.concatenate((r[::-1], r)) * 255
+    g = np.concatenate((g[::-1], g)) * 255
+    b = np.concatenate((b[::-1], b)) * 255
+
+    # Combine into a single array to return
+    output = np.array([r, g, b])
+
     return output
 
 
