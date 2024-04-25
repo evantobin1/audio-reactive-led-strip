@@ -162,7 +162,7 @@ def visualize_energy(y):
     return p
 
 
-_prev_spectrum = np.tile(0.01, config.N_PIXELS // 2)
+_prev_spectrum = np.tile(0.01, config.N_PIXELS)
 
 
 def visualize_spectrum(y):
@@ -175,16 +175,16 @@ def visualize_spectrum(y):
     if '_prev_spectrum' not in globals():
         _prev_spectrum = np.zeros(config.N_PIXELS // 2)
 
-    r_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+    r_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
                            alpha_decay=0.2, alpha_rise=0.99)
-    g_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+    g_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
                            alpha_decay=0.05, alpha_rise=0.3)
-    b_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+    b_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
                            alpha_decay=0.1, alpha_rise=0.5)
-    common_mode = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+    common_mode = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
                                 alpha_decay=0.99, alpha_rise=0.01)
 
-    y = np.copy(interpolate(y, config.N_PIXELS // 2))
+    y = np.copy(interpolate(y, config.N_PIXELS))
     common_mode.update(y)
     diff = y - _prev_spectrum
     _prev_spectrum = np.copy(y)  # Update the previous spectrum
@@ -199,17 +199,15 @@ def visualize_spectrum(y):
     g[g < threshold] = 0
     b[b < threshold] = 0
 
-    # Mirror the color channels for symmetric output and scale to RGB range
-    r = np.concatenate((r[::-1], r)) * 255
-    g = np.concatenate((g[::-1], g)) * 255
-    b = np.concatenate((b[::-1], b)) * 255
+    # Scale to RGB range, no mirroring needed
+    r = r * 255
+    g = g * 255
+    b = b * 255
 
     # Combine into a single array to return
     output = np.array([r, g, b])
 
     return output
-
-
 
 fft_plot_filter = dsp.ExpFilter(np.tile(1e-1, config.N_FFT_BINS),
                          alpha_decay=0.5, alpha_rise=0.99)
