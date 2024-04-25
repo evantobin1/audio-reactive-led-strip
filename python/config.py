@@ -58,7 +58,7 @@ N_PIXELS = 300
 GAMMA_TABLE_PATH = os.path.join(os.path.dirname(__file__), 'gamma_table.npy')
 """Location of the gamma correction table"""
 
-MIC_RATE = 48000
+MIC_RATE = 44100
 """Sampling frequency of the microphone in Hz"""
 
 FPS = 24
@@ -106,3 +106,5 @@ N_ROLLING_HISTORY = 2
 
 MIN_VOLUME_THRESHOLD = 1e-3
 """No music visualization displayed if recorded audio volume below threshold"""
+DELAY = 250 
+"""Millisecond delay in case speakers are out of sync (like Bluetooth Latency)"""

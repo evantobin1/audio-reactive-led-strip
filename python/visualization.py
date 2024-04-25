@@ -8,6 +8,13 @@ import microphone
 import dsp
 import led
 
+from collections import deque
+
+# Configuration for delay
+DELAY_MS = config.DELAY  # milliseconds of delay
+DELAY_SAMPLES = int((config.MIC_RATE / 1000) * DELAY_MS)
+audio_delay_buffer = deque(maxlen=DELAY_SAMPLES)
+
 _time_prev = time.time() * 1000.0
 """The previous time that the frames_per_second() function was called"""
 
@@ -188,6 +195,7 @@ def visualize_spectrum(y):
     return output
 
 
+
 fft_plot_filter = dsp.ExpFilter(np.tile(1e-1, config.N_FFT_BINS),
                          alpha_decay=0.5, alpha_rise=0.99)
 mel_gain = dsp.ExpFilter(np.tile(1e-1, config.N_FFT_BINS),
@@ -202,13 +210,25 @@ prev_fps_update = time.time()
 
 def microphone_update(audio_samples):
     global y_roll, prev_rms, prev_exp, prev_fps_update
+
+    # Add incoming samples to the delay buffer
+    audio_delay_buffer.extend(audio_samples)
+    if len(audio_delay_buffer) < DELAY_SAMPLES:
+        return  # Wait until buffer is full
+
+    # Use only the oldest samples which have been delayed appropriately
+    delayed_samples = np.array(audio_delay_buffer)[:samples_per_frame]
+    audio_delay_buffer.popleft()  # Remove the processed samples
+
     # Normalize samples between 0 and 1
-    y = audio_samples / 2.0**15
+    y = delayed_samples / 2.0**15
     # Construct a rolling window of audio samples
     y_roll[:-1] = y_roll[1:]
     y_roll[-1, :] = np.copy(y)
     y_data = np.concatenate(y_roll, axis=0).astype(np.float32)
     
+    # Rest of your existing processing code follows here
+    # For example:
     vol = np.max(np.abs(y_data))
     if vol < config.MIN_VOLUME_THRESHOLD:
         print('No audio input. Volume below threshold. Volume:', vol)
@@ -363,7 +383,8 @@ if __name__ == '__main__':
         energy_label.mousePressEvent = energy_click
         scroll_label.mousePressEvent = scroll_click
         spectrum_label.mousePressEvent = spectrum_click
-        energy_click(0)
+        #energy_click(0)
+        spectrum_click(0)
         # Layout
         layout.nextRow()
         layout.addItem(freq_label, colspan=3)
