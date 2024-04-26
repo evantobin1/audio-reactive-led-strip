@@ -162,8 +162,6 @@ def visualize_energy(y):
     return p
 
 
-_prev_spectrum = np.tile(0.01, config.N_PIXELS)
-
 
 def visualize_spectrum(y):
     global _prev_spectrum  # Ensure _prev_spectrum is defined at the global level
@@ -173,12 +171,12 @@ def visualize_spectrum(y):
 
     # Check if _prev_spectrum needs initialization (e.g., first run)
     if '_prev_spectrum' not in globals():
-        _prev_spectrum = np.zeros(config.N_PIXELS // 2)
+        _prev_spectrum = np.tile(0.01, config.N_PIXELS)
 
     r_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
-                           alpha_decay=0.2, alpha_rise=0.99)
+                           alpha_decay=0.3, alpha_rise=0.8)
     g_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
-                           alpha_decay=0.05, alpha_rise=0.3)
+                           alpha_decay=0.15, alpha_rise=0.3)
     b_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
                            alpha_decay=0.1, alpha_rise=0.5)
     common_mode = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS),
@@ -194,20 +192,109 @@ def visualize_spectrum(y):
     g = g_filt.update(np.abs(diff))
     b = b_filt.update(np.copy(y))
 
-    # Apply threshold check
-    r[r < threshold] = 0
-    g[g < threshold] = 0
-    b[b < threshold] = 0
+    # # Apply threshold check
+    # r[r < threshold] = 0
+    # g[g < threshold] = 0
+    # b[b < threshold] = 0
 
     # Scale to RGB range, no mirroring needed
-    r = r * 255
-    g = g * 255
-    b = b * 255
+    r = r * 255 
+    g = g * 500
+    b = b * 255 
 
     # Combine into a single array to return
     output = np.array([r, g, b])
 
     return output
+
+
+def visualize_spectrum_mirror(y):
+    global _prev_spectrum
+
+    # Check if _prev_spectrum needs initialization (e.g., first run)
+    if '_prev_spectrum' not in globals():
+        _prev_spectrum = np.tile(0.01, config.N_PIXELS // 2)
+
+    r_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+                        alpha_decay=0.2, alpha_rise=0.99)
+    g_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+                        alpha_decay=0.05, alpha_rise=0.3)
+    b_filt = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+                        alpha_decay=0.1, alpha_rise=0.5)
+    common_mode = dsp.ExpFilter(np.tile(0.01, config.N_PIXELS // 2),
+                        alpha_decay=0.99, alpha_rise=0.01)
+    p_filt = dsp.ExpFilter(np.tile(1, (3, config.N_PIXELS // 2)),
+                        alpha_decay=0.1, alpha_rise=0.99)
+    p = np.tile(1.0, (3, config.N_PIXELS // 2))
+    
+    """Effect that maps the Mel filterbank frequencies onto the LED strip"""
+    y = np.copy(interpolate(y, config.N_PIXELS // 2))
+    common_mode.update(y)
+    diff = y - _prev_spectrum
+    _prev_spectrum = np.copy(y)
+    # Color channel mappings
+    r = r_filt.update(y - common_mode.value)
+    g = np.abs(diff)
+    b = b_filt.update(np.copy(y))
+    # Mirror the color channels for symmetric output
+    r = np.concatenate((r[::-1], r))
+    g = np.concatenate((g[::-1], g))
+    b = np.concatenate((b[::-1], b))
+    output = np.array([r, g,b]) * 255
+    return output
+
+def visualize_spectrum_colorful(y):
+    global last_change_time, current_color_index, current_color, next_color
+    
+    if 'last_change_time' not in globals():
+        last_change_time = time.time()
+    if 'current_color_index' not in globals():
+        current_color_index = 0
+    if 'colors' not in globals():
+        colors = [(255, 0, 0), (0, 0, 255), (0, 255, 0), (128, 0, 128)]  # RGB for Red, Blue, Green, Purple
+    if 'current_color' not in globals():
+        current_color = np.array(colors[current_color_index])
+    if 'next_color' not in globals():
+        next_color = np.array(colors[(current_color_index + 1) % len(colors)])
+
+    color_duration = 10  # seconds each color is displayed
+    fade_duration = 3    # seconds for color transition
+
+    def update_color():
+        global last_change_time, current_color_index, current_color, next_color
+        # Calculate elapsed time
+        time_now = time.time()
+        time_elapsed = time_now - last_change_time
+
+        # Check if it's time to update the current and next colors
+        if time_elapsed > color_duration + fade_duration:
+            current_color_index = (current_color_index + 1) % len(colors)
+            current_color = np.array(colors[current_color_index])
+            next_color = np.array(colors[(current_color_index + 1) % len(colors)])
+            last_change_time = time_now
+
+        # Calculate current display color based on timing
+        if time_elapsed > color_duration:
+            fade_progress = (time_elapsed - color_duration) / fade_duration
+            current_display_color = (1 - fade_progress) * current_color + fade_progress * next_color
+        else:
+            current_display_color = current_color
+
+        return current_display_color.flatten()
+
+    current_display_color = update_color() / 255  # Normalize the color for intensity calculations
+
+    # Use the existing spectrum visualization logic here to get the LED values
+    spectrum_output = visualize_spectrum_mirror(y) 
+
+    # Apply the current display color to the spectrum output
+    colored_output = np.array([spectrum_output[0] * current_display_color[0],
+                               spectrum_output[1] * current_display_color[1],
+                               spectrum_output[2] * current_display_color[2]])
+
+    return colored_output
+
+
 
 fft_plot_filter = dsp.ExpFilter(np.tile(1e-1, config.N_FFT_BINS),
                          alpha_decay=0.5, alpha_rise=0.99)
@@ -385,7 +472,7 @@ if __name__ == '__main__':
             spectrum_label.setText('Spectrum', color=inactive_color)
         def spectrum_click(x):
             global visualization_effect
-            visualization_effect = visualize_spectrum
+            visualization_effect = visualize_spectrum_colorful
             energy_label.setText('Energy', color=inactive_color)
             scroll_label.setText('Scroll', color=inactive_color)
             spectrum_label.setText('Spectrum', color=active_color)
