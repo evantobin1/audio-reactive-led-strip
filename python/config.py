@@ -49,6 +49,18 @@ if DEVICE == 'blinkstick':
 USE_GUI = True
 """Whether or not to display a PyQtGraph GUI plot of visualization"""
 
+USE_WIZ = True
+"""Whether or not to use the Wiz API to control any Wiz LEDS"""
+
+WIZ_IPS = ["192.168.0.59", "192.168.0.25"]
+"""The IP of your Wiz lightbulb"""
+
+WIZ_COLOR_DURATION = 10
+"""Seconds each color is displayed"""
+
+WIZ_FADE_DURATION = 3
+"""Seconds for color transition"""
+
 DISPLAY_FPS = True
 """Whether to display the FPS when running (can reduce performance)"""
 
@@ -58,7 +70,7 @@ N_PIXELS = 300
 GAMMA_TABLE_PATH = os.path.join(os.path.dirname(__file__), 'gamma_table.npy')
 """Location of the gamma correction table"""
 
-MIC_RATE = 44100
+MIC_RATE = 48000
 """Sampling frequency of the microphone in Hz"""
 
 FPS = 24
@@ -106,5 +118,5 @@ N_ROLLING_HISTORY = 2
 
 MIN_VOLUME_THRESHOLD = 1e-3
 """No music visualization displayed if recorded audio volume below threshold"""
-DELAY = 250 
+DELAY = 48 # 250 
 """Millisecond delay in case speakers are out of sync (like Bluetooth Latency)"""

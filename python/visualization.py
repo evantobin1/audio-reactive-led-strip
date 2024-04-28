@@ -7,6 +7,7 @@ import config
 import microphone   
 import dsp
 import led
+import wiz
 
 from collections import deque
 
@@ -243,8 +244,8 @@ def visualize_spectrum_mirror(y):
     output = np.array([r, g,b]) * 255
     return output
 
-def visualize_spectrum_colorful(y):
-    global last_change_time, current_color_index, current_color, next_color
+def visualize_spectrum_mirror_colorful(y):
+    global last_change_time, current_color_index, current_color, next_color   
     
     if 'last_change_time' not in globals():
         last_change_time = time.time()
@@ -254,31 +255,44 @@ def visualize_spectrum_colorful(y):
         colors = [(255, 0, 0), (0, 0, 255), (0, 255, 0), (128, 0, 128)]  # RGB for Red, Blue, Green, Purple
     if 'current_color' not in globals():
         current_color = np.array(colors[current_color_index])
+        wiz.change_bulb_speed(config.WIZ_FADE_DURATION)
+        wiz.change_bulb_color(current_color)
     if 'next_color' not in globals():
         next_color = np.array(colors[(current_color_index + 1) % len(colors)])
 
-    color_duration = 10  # seconds each color is displayed
-    fade_duration = 3    # seconds for color transition
+    NUM_WIZ_INTERVALS = 10
+    time_per_wiz_interval = config.WIZ_FADE_DURATION / NUM_WIZ_INTERVALS
 
     def update_color():
-        global last_change_time, current_color_index, current_color, next_color
+        global last_change_time, current_color_index, current_color, next_color, has_set_wix, time_till_next_wiz_interval
+
         # Calculate elapsed time
         time_now = time.time()
         time_elapsed = time_now - last_change_time
 
+        if time_elapsed <= config.WIZ_COLOR_DURATION:
+            time_till_next_wiz_interval = time_elapsed + time_per_wiz_interval
+
+        # Calculate current display color based on timing
+        if time_elapsed > config.WIZ_COLOR_DURATION:
+
+            fade_progress = (time_elapsed - config.WIZ_COLOR_DURATION) / config.WIZ_FADE_DURATION
+            current_display_color = (1 - fade_progress) * current_color + fade_progress * next_color
+
+            # Update the WiZ light bulb
+            if(time_elapsed > time_till_next_wiz_interval):
+                wiz.change_bulb_color(current_display_color.flatten())
+                time_till_next_wiz_interval += time_per_wiz_interval
+
+        else:
+            current_display_color = current_color
+
         # Check if it's time to update the current and next colors
-        if time_elapsed > color_duration + fade_duration:
+        if time_elapsed > config.WIZ_COLOR_DURATION + config.WIZ_FADE_DURATION:
             current_color_index = (current_color_index + 1) % len(colors)
             current_color = np.array(colors[current_color_index])
             next_color = np.array(colors[(current_color_index + 1) % len(colors)])
             last_change_time = time_now
-
-        # Calculate current display color based on timing
-        if time_elapsed > color_duration:
-            fade_progress = (time_elapsed - color_duration) / fade_duration
-            current_display_color = (1 - fade_progress) * current_color + fade_progress * next_color
-        else:
-            current_display_color = current_color
 
         return current_display_color.flatten()
 
@@ -472,7 +486,7 @@ if __name__ == '__main__':
             spectrum_label.setText('Spectrum', color=inactive_color)
         def spectrum_click(x):
             global visualization_effect
-            visualization_effect = visualize_spectrum_colorful
+            visualization_effect = visualize_spectrum_mirror_colorful
             energy_label.setText('Energy', color=inactive_color)
             scroll_label.setText('Scroll', color=inactive_color)
             spectrum_label.setText('Spectrum', color=active_color)
