@@ -118,5 +118,5 @@ N_ROLLING_HISTORY = 2
 
 MIN_VOLUME_THRESHOLD = 1e-3
 """No music visualization displayed if recorded audio volume below threshold"""
-DELAY = 48 # 250 
+DELAY = 150
 """Millisecond delay in case speakers are out of sync (like Bluetooth Latency)"""

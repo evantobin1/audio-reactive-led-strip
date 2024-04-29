@@ -129,7 +129,7 @@ def visualize_scroll(y):
     p[1, 0] = g
     p[2, 0] = b
     # Update the LED strip
-    return p
+    return p, None
     return np.concatenate((p[:, ::-1], p), axis=1)
 
 
@@ -160,7 +160,7 @@ def visualize_energy(y):
     p[1, :] = gaussian_filter1d(p[1, :], sigma=4.0)
     p[2, :] = gaussian_filter1d(p[2, :], sigma=4.0)
     # Set the new pixel value
-    return p
+    return p, None
 
 
 
@@ -206,7 +206,7 @@ def visualize_spectrum(y):
     # Combine into a single array to return
     output = np.array([r, g, b])
 
-    return output
+    return output, None
 
 
 def visualize_spectrum_mirror(y):
@@ -242,20 +242,32 @@ def visualize_spectrum_mirror(y):
     g = np.concatenate((g[::-1], g))
     b = np.concatenate((b[::-1], b))
     output = np.array([r, g,b]) * 255
-    return output
+    return output, None
 
 def visualize_spectrum_mirror_colorful(y):
     global last_change_time, current_color_index, current_color, next_color   
+    
+    wiz_light_color = None
     
     if 'last_change_time' not in globals():
         last_change_time = time.time()
     if 'current_color_index' not in globals():
         current_color_index = 0
     if 'colors' not in globals():
-        colors = [(255, 0, 0), (0, 0, 255), (0, 255, 0), (128, 0, 128)]  # RGB for Red, Blue, Green, Purple
+        colors = [
+            (255, 0, 0),        # Red
+            (255, 165, 0),      # Orange
+            (255, 255, 0),      # Yellow
+            (0, 255, 0),        # Green
+            (0, 255, 255),      # Cyan
+            (0, 0, 255),        # Blue
+            (75, 0, 130),       # Indigo
+            (128, 0, 128),      # Purple
+            (255, 192, 203),    # Pink
+            (255, 20, 147),     # Deep Pink
+        ] 
     if 'current_color' not in globals():
         current_color = np.array(colors[current_color_index])
-        wiz.change_bulb_speed(config.WIZ_FADE_DURATION)
         wiz.change_bulb_color(current_color)
     if 'next_color' not in globals():
         next_color = np.array(colors[(current_color_index + 1) % len(colors)])
@@ -265,6 +277,7 @@ def visualize_spectrum_mirror_colorful(y):
 
     def update_color():
         global last_change_time, current_color_index, current_color, next_color, has_set_wix, time_till_next_wiz_interval
+
 
         # Calculate elapsed time
         time_now = time.time()
@@ -281,7 +294,7 @@ def visualize_spectrum_mirror_colorful(y):
 
             # Update the WiZ light bulb
             if(time_elapsed > time_till_next_wiz_interval):
-                wiz.change_bulb_color(current_display_color.flatten())
+                wiz_light_color = current_display_color.flatten()
                 time_till_next_wiz_interval += time_per_wiz_interval
 
         else:
@@ -299,14 +312,14 @@ def visualize_spectrum_mirror_colorful(y):
     current_display_color = update_color() / 255  # Normalize the color for intensity calculations
 
     # Use the existing spectrum visualization logic here to get the LED values
-    spectrum_output = visualize_spectrum_mirror(y) 
+    spectrum_output, _ = visualize_spectrum_mirror(y) 
 
     # Apply the current display color to the spectrum output
     colored_output = np.array([spectrum_output[0] * current_display_color[0],
-                               spectrum_output[1] * current_display_color[1],
-                               spectrum_output[2] * current_display_color[2]])
+                               spectrum_output[0] * current_display_color[1],
+                               spectrum_output[0] * current_display_color[2]])
 
-    return colored_output
+    return colored_output, wiz_light_color
 
 
 
@@ -367,9 +380,12 @@ def microphone_update(audio_samples):
         mel /= mel_gain.value
         mel = mel_smoothing.update(mel)
         # Map filterbank output onto LED strip
-        output = visualization_effect(mel)
-        led.pixels = output
+        led_output, wiz_output = visualization_effect(mel)
+        led.pixels = led_output
         led.update()
+        if wiz_output is not None:
+            wiz.change_bulb_color(current_color)
+
         if config.USE_GUI:
             # Plot filterbank output
             x = np.linspace(config.MIN_FREQUENCY, config.MAX_FREQUENCY, len(mel))
